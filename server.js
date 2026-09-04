@@ -47,17 +47,28 @@ const MIME_TYPES = {
 };
 
 function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Gemini-Key, X-Webhook-Url',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
-  });
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Key, X-Webhook-Url');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+  if (typeof res.status === 'function' && typeof res.json === 'function') {
+    return res.status(statusCode).json(data);
+  }
+  if (!res.headersSent) {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  }
   res.end(JSON.stringify(data));
 }
 
 function parseJsonBody(req) {
+  if (req.body) {
+    if (typeof req.body === 'object') return Promise.resolve(req.body);
+    if (typeof req.body === 'string') {
+      try { return Promise.resolve(JSON.parse(req.body)); } catch (_) { return Promise.resolve({}); }
+    }
+  }
   return new Promise((resolve, reject) => {
     let body = '';
     const MAX_SIZE = 20 * 1024 * 1024; // 20MB
@@ -91,7 +102,7 @@ function calcolaIdSintetico(tx) {
   return `${dataStr}_${bancaStr}_${causaleNormalizzata}_${importoStr}`;
 }
 
-// Handler per l'estrazione multipla AI con Gemini Flash
+// Handler per l'estrazione multimodale AI con Gemini Flash
 async function handleExtract(req, res) {
   try {
     const body = await parseJsonBody(req);
@@ -120,9 +131,15 @@ async function handleExtract(req, res) {
       cleanBase64 = parts[1];
     }
 
+    // Calcolo dinamico dell'anno corrente di sistema
+    const currentYear = new Date().getFullYear();
+
     const systemPrompt = "Sei un revisore contabile esperto. Estrai le transazioni da questo screenshot bancario. " +
       "Ignora i saldi, l'orario e la batteria. Restituisci SOLO un array JSON puro, senza markdown. " +
-      "Chiavi richieste: 'data' (formato GG/MM/AAAA), 'causale' (testo pulito), 'importo' (numero con segno), 'banca' (identifica istituto dal brand, es. 'BancoPosta', 'BBVA', 'Trade Republic', 'Revolut'. Se la banca non è esplicitamente indicata nel testo, individuala dalla grafica, dai colori e dal layout dello screenshot), 'interpretazione' (analizza la causale bancaria e scrivi in testo libero, conciso ed esplicativo, a cosa si riferisce l'operazione).";
+      `REGOLA TASSATIVA SULL'ANNO: L'anno di riferimento corrente del sistema è obbligatoriamente il ${currentYear}. ` +
+      `Se lo screenshot bancario mostra solo giorno e mese (es. "12 Ago", "31/08", "04/09"), DEVI utilizzare tassativamente il ${currentYear} come anno per comporre la data GG/MM/AAAA (es. 12/08/${currentYear}, 31/08/${currentYear}). ` +
+      `NON inventare né impostare anni passati (come il 2024), a meno che l'anno non sia esplicitamente scritto con 4 cifre nello screenshot. ` +
+      "Chiavi richieste: 'data' (formato GG/MM/AAAA con anno a 4 cifre), 'causale' (testo pulito), 'importo' (numero con segno), 'banca' (identifica istituto dal brand, es. 'BancoPosta', 'BBVA', 'Trade Republic', 'Revolut', 'Buoni pasto'. Se la banca non è esplicitamente indicata nel testo, individuala dalla grafica, dai colori e dal layout dello screenshot), 'interpretazione' (analizza la causale bancaria e scrivi in testo libero, conciso ed esplicativo, a cosa si riferisce l'operazione).";
 
     const promptPayload = {
       contents: [
@@ -135,7 +152,7 @@ async function handleExtract(req, res) {
               }
             },
             {
-              text: "Estrai tutte le transazioni contabili presenti in questo screenshot. Restituisci esclusivamente un array JSON contenente tutti i movimenti con le chiavi: data (GG/MM/AAAA), causale, importo (float con segno), banca, interpretazione."
+              text: `Estrai tutte le transazioni contabili presenti in questo screenshot. ANNO DI RIFERIMENTO OBBLIGATORIO: ${currentYear}. Se le date mostrano solo giorno e mese, usa tassativamente il ${currentYear} come anno. Restituisci esclusivamente un array JSON contenente tutti i movimenti con le chiavi: data (formato GG/MM/${currentYear}), causale, importo (float con segno), banca, interpretazione.`
             }
           ]
         }
@@ -149,7 +166,7 @@ async function handleExtract(req, res) {
             properties: {
               data: {
                 type: "STRING",
-                description: "Data della transazione nel formato GG/MM/AAAA"
+                description: `Data della transazione nel formato GG/MM/AAAA. Se lo screenshot mostra solo giorno e mese, imposta obbligatoriamente l'anno corrente ${currentYear}.`
               },
               causale: {
                 type: "STRING",
@@ -161,7 +178,7 @@ async function handleExtract(req, res) {
               },
               banca: {
                 type: "STRING",
-                description: "Brand dell'istituto bancario rilevato dal testo o dalla grafica (es. BancoPosta, BBVA, Trade Republic, Revolut)"
+                description: "Brand dell'istituto bancario rilevato dal testo o dalla grafica (es. BancoPosta, BBVA, Trade Republic, Revolut, Buoni pasto)"
               },
               interpretazione: {
                 type: "STRING",
@@ -180,16 +197,23 @@ async function handleExtract(req, res) {
       }
     };
 
+    // Sanificazione rigorosa del modello: rimozione categorica di qualsiasi versione 2.5
+    let envModel = (process.env.GEMINI_MODEL || '').trim();
+    if (!envModel || envModel.includes('2.5')) {
+      envModel = 'gemini-3.6-flash';
+    }
+
     const candidateModels = [
-      (process.env.GEMINI_MODEL || 'gemini-3.7-flash').trim(),
-      'gemini-3.5-flash-lite',
-      'gemini-2.5-flash'
-    ].filter((v, i, a) => a.indexOf(v) === i);
+      envModel,
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash'
+    ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('2.5'));
 
     let lastError = null;
     let successfulResult = null;
 
-    console.log(`[EXTRACT] Avvio estrazione con candidati: ${candidateModels.join(', ')}`);
+    console.log(`[EXTRACT] Avvio estrazione con modelli candidati: ${candidateModels.join(', ')}`);
 
     for (const model of candidateModels) {
       try {
@@ -224,7 +248,7 @@ async function handleExtract(req, res) {
 
         if (rawText) {
           successfulResult = { rawText, usedModel: model };
-          console.log(`[EXTRACT OK] Risposta ricevuta dal modello ${model}`);
+          console.log(`[EXTRACT OK] Risposta ricevuta con successo dal modello ${model}`);
           break;
         }
       } catch (callErr) {
@@ -294,15 +318,30 @@ async function handleExtract(req, res) {
 
     const processedTransactions = rawList.map((tx, idx) => {
       let dataStr = String(tx.data || '').trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
-        const parts = dataStr.split('-');
-        dataStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
-      } else if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dataStr)) {
+
+      // OVERRIDE RIGIDO PROGRAMMATICO DELL'ANNO:
+      // Estrae giorno e mese tranciando via qualunque anno allucinato dall'IA,
+      // e forza SEMPRE e tassativamente l'anno corrente (currentYear).
+      let day, month;
+      const isoMatch = dataStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (isoMatch) {
+        day = isoMatch[3].padStart(2, '0');
+        month = isoMatch[2].padStart(2, '0');
+      } else {
+        const dmyMatch = dataStr.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/]\d{2,4})?$/);
+        if (dmyMatch) {
+          day = dmyMatch[1].padStart(2, '0');
+          month = dmyMatch[2].padStart(2, '0');
+        }
+      }
+
+      if (day && month && parseInt(month, 10) >= 1 && parseInt(month, 10) <= 12 && parseInt(day, 10) >= 1 && parseInt(day, 10) <= 31) {
+        dataStr = `${day}/${month}/${currentYear}`;
+      } else {
         const now = new Date();
         const d = String(now.getDate()).padStart(2, '0');
         const m = String(now.getMonth() + 1).padStart(2, '0');
-        const y = now.getFullYear();
-        dataStr = `${d}/${m}/${y}`;
+        dataStr = `${d}/${m}/${currentYear}`;
       }
 
       let importoVal = parseFloat(tx.importo);
@@ -328,7 +367,7 @@ async function handleExtract(req, res) {
       return sanitizedTx;
     });
 
-    console.log(`[EXTRACT DONE] Restituisco ${processedTransactions.length} transazioni all'interfaccia.`);
+    console.log(`[EXTRACT DONE] Restituisco ${processedTransactions.length} transazioni con anno forzato ${currentYear}`);
 
     return sendJson(res, 200, {
       success: true,
@@ -416,7 +455,6 @@ async function handleSave(req, res) {
       responseJson = JSON.parse(responseText);
     } catch (_) {}
 
-    // CONTROLLO RIGOROSO: se la risposta non e JSON o ha status diverso da 'success'
     if (!responseJson) {
       let diagnosi = 'Google Apps Script ha restituito HTML anziché JSON.';
       if (responseText.includes('sandboxFrame') || responseText.includes('userHtml')) {
@@ -465,17 +503,26 @@ async function handleSave(req, res) {
   }
 }
 
+// Endpoint diagnostico /api/status aggiornato
 function handleStatus(req, res) {
+  let envModel = (process.env.GEMINI_MODEL || '').trim();
+  if (!envModel || envModel.includes('2.5')) {
+    envModel = 'gemini-3.6-flash';
+  }
+
   sendJson(res, 200, {
     success: true,
+    version: '2.9.3-flash-3.6-dynamic-year',
+    platform: process.env.VERCEL ? 'Vercel Serverless' : 'Node.js Local Server',
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 5),
     webhookConfigured: Boolean(process.env.WEBHOOK_URL && process.env.WEBHOOK_URL.trim().startsWith('http')),
-    model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+    model: envModel,
     port: PORT,
     serverTime: new Date().toISOString()
   });
 }
 
+// Salvataggio runtime della configurazione
 async function handleConfig(req, res) {
   try {
     const body = await parseJsonBody(req);
@@ -484,13 +531,17 @@ async function handleConfig(req, res) {
     const envPath = path.join(__dirname, '.env');
     if (geminiApiKey !== undefined) process.env.GEMINI_API_KEY = geminiApiKey.trim();
     if (webhookUrl !== undefined) process.env.WEBHOOK_URL = webhookUrl.trim();
-    if (geminiModel !== undefined) process.env.GEMINI_MODEL = geminiModel.trim();
+    if (geminiModel !== undefined) {
+      let m = geminiModel.trim();
+      if (m.includes('2.5')) m = 'gemini-3.6-flash';
+      process.env.GEMINI_MODEL = m;
+    }
 
     const newContent = [
       '# ClaiserBank Environment Variables',
       `GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ''}`,
       `WEBHOOK_URL=${process.env.WEBHOOK_URL || ''}`,
-      `GEMINI_MODEL=${process.env.GEMINI_MODEL || 'gemini-3.7-flash'}`,
+      `GEMINI_MODEL=${process.env.GEMINI_MODEL || 'gemini-3.6-flash'}`,
       `PORT=${PORT}`,
       ''
     ].join('\n');
@@ -511,7 +562,7 @@ async function handleConfig(req, res) {
   }
 }
 
-// Servizio file statici PWA con NO-CACHE
+// Servizio file statici PWA con cache busting
 function serveStaticFile(req, res, pathname) {
   let safePath = path.normalize(pathname).replace(/^[\/\\]+/, '');
   if (!safePath || safePath === '.') safePath = 'index.html';
@@ -519,6 +570,7 @@ function serveStaticFile(req, res, pathname) {
   const filePath = path.join(PUBLIC_DIR, safePath);
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
+    if (typeof res.status === 'function') return res.status(403).send('Accesso non autorizzato');
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Accesso non autorizzato');
     return;
@@ -529,6 +581,7 @@ function serveStaticFile(req, res, pathname) {
       const indexPath = path.join(PUBLIC_DIR, 'index.html');
       fs.readFile(indexPath, (indexErr, data) => {
         if (indexErr) {
+          if (typeof res.status === 'function') return res.status(404).send('File non trovato');
           res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
           res.end('File non trovato');
         } else {
@@ -562,16 +615,19 @@ function serveStaticFile(req, res, pathname) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+// Router principale compatibile sia con Vercel Serverless Function che con Node.js Standalone
+export default async function handler(req, res) {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Gemini-Key, X-Webhook-Url'
-    });
+    if (!res.headersSent) {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Gemini-Key, X-Webhook-Url'
+      });
+    }
     res.end();
     return;
   }
@@ -583,18 +639,25 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' || req.method === 'HEAD') return serveStaticFile(req, res, pathname);
 
-  res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+  if (!res.headersSent) {
+    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
   res.end('Metodo HTTP non supportato');
-});
+}
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('============================================================');
-  console.log('🏦 CLAISERBANK PWA - OPEN BANKING AI DATA ENTRY');
-  console.log('============================================================');
-  console.log(`🚀 Server attivo su: http://localhost:${PORT}`);
-  console.log(`📱 Accessibile da mobile tramite l'IP locale sulla porta ${PORT}`);
-  console.log(`🔑 Stato Gemini API Key: ${process.env.GEMINI_API_KEY ? '✅ Configurato' : '⚠️ Non configurato'}`);
-  console.log(`📊 Stato Webhook URL:    ${process.env.WEBHOOK_URL ? '✅ Configurato' : '⚠️ Non configurato'}`);
-  console.log(`📋 Target Foglio Sheets: BANK_LOG (Colonne B:H)`);
-  console.log('============================================================\n');
-});
+// Server HTTP per l'esecuzione in locale (start.bat / node server.js)
+const server = http.createServer(handler);
+
+if (!process.env.VERCEL) {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('============================================================');
+    console.log('🏦 CLAISERBANK PWA - OPEN BANKING AI DATA ENTRY');
+    console.log('============================================================');
+    console.log(`🚀 Server attivo su: http://localhost:${PORT}`);
+    console.log(`📱 Accessibile da mobile tramite l'IP locale sulla porta ${PORT}`);
+    console.log(`🔑 Stato Gemini API Key: ${process.env.GEMINI_API_KEY ? '✅ Configurato' : '⚠️ Non configurato'}`);
+    console.log(`📊 Stato Webhook URL:    ${process.env.WEBHOOK_URL ? '✅ Configurato' : '⚠️ Non configurato'}`);
+    console.log(`📋 Target Foglio Sheets: BANK_LOG (Colonne B:H)`);
+    console.log('============================================================\n');
+  });
+}
