@@ -163,12 +163,17 @@ export default async function handler(req, res) {
       }
     };
 
+    let envModel = (process.env.GEMINI_MODEL || '').trim();
+    if (!envModel || envModel.includes('2.5')) {
+      envModel = 'gemini-3.6-flash';
+    }
+
     const candidateModels = [
-      (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim(),
+      envModel,
       'gemini-3.6-flash',
       'gemini-3.7-flash',
       'gemini-3.5-flash'
-    ].filter((v, i, a) => a.indexOf(v) === i);
+    ].filter((v, i, a) => a.indexOf(v) === i && !v.includes('2.5'));
 
     let lastError = null;
     let successfulResult = null;
