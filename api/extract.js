@@ -278,15 +278,28 @@ export default async function handler(req, res) {
 
     const processedTransactions = rawList.map((tx, idx) => {
       let dataStr = String(tx.data || '').trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
-        const parts = dataStr.split('-');
-        dataStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
-      } else if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dataStr)) {
+
+      // OVERRIDE RIGIDO DELL'ANNO: estrai giorno e mese, e forza SEMPRE currentYear
+      let day, month;
+      const isoMatch = dataStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (isoMatch) {
+        day = isoMatch[3].padStart(2, '0');
+        month = isoMatch[2].padStart(2, '0');
+      } else {
+        const dmyMatch = dataStr.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/]\d{2,4})?$/);
+        if (dmyMatch) {
+          day = dmyMatch[1].padStart(2, '0');
+          month = dmyMatch[2].padStart(2, '0');
+        }
+      }
+
+      if (day && month && parseInt(month, 10) >= 1 && parseInt(month, 10) <= 12 && parseInt(day, 10) >= 1 && parseInt(day, 10) <= 31) {
+        dataStr = `${day}/${month}/${currentYear}`;
+      } else {
         const now = new Date();
         const d = String(now.getDate()).padStart(2, '0');
         const m = String(now.getMonth() + 1).padStart(2, '0');
-        const y = now.getFullYear();
-        dataStr = `${d}/${m}/${y}`;
+        dataStr = `${d}/${m}/${currentYear}`;
       }
 
       let importoVal = parseFloat(tx.importo);
