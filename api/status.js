@@ -17,7 +17,7 @@ export default function handler(req, res) {
     platform: 'Vercel Serverless',
     geminiConfigured,
     webhookConfigured,
-    model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+    model: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
     serverTime: new Date().toISOString()
   }));
 }
