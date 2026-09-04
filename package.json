@@ -1,0 +1,22 @@
+{
+  "name": "claiser-bank-pwa",
+  "version": "1.0.0",
+  "description": "Progressive Web App per l'automazione del data entry contabile con Gemini AI Multimodale e Google Sheets Webhook",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "pwa",
+    "gemini",
+    "ai",
+    "accounting",
+    "google-sheets",
+    "webhook",
+    "mobile-first"
+  ],
+  "author": "ClaiserBank",
+  "license": "MIT"
+}
