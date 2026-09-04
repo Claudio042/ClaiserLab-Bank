@@ -164,9 +164,10 @@ export default async function handler(req, res) {
     };
 
     const candidateModels = [
-      (process.env.GEMINI_MODEL || 'gemini-3.7-flash').trim(),
-      'gemini-3.5-flash-lite',
-      'gemini-2.5-flash'
+      (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim(),
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash'
     ].filter((v, i, a) => a.indexOf(v) === i);
 
     let lastError = null;
