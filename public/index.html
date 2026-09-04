@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Claiser.Lab Bank - Open Banking Data Entry AI</title>
+  
+  <!-- PWA & Meta Tags -->
+  <meta name="theme-color" content="#0b061a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Claiser.Lab">
+  <meta name="description" content="Automazione contabile Open Banking con estrazione Gemini AI e sincronizzazione su foglio BANK_LOG">
+  
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=2.8.0">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png?v=2.8.0">
+  <link rel="shortcut icon" href="/icons/icon-192.png?v=2.8.0">
+  <link rel="manifest" href="/manifest.json?v=2.8.0">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/style.css?v=2.8.0">
+</head>
+<body>
+  <div class="app-wrapper">
+    
+    <!-- Top Header con Logo Ufficiale Claiser.Lab -->
+    <header class="app-header">
+      <div class="brand-left">
+        <div class="brand-logo-wrap" title="Claiser.Lab">
+          <img src="/icons/icon-192.png" alt="Claiser.Lab Logo" class="brand-logo-img">
+        </div>
+      </div>
+
+      <div class="brand-center">
+        <h1 class="brand-heading"><span class="text-gold">Cla</span><span class="text-white">iser.</span><span class="text-gold">Lab</span><span class="brand-subtag">Bank</span></h1>
+      </div>
+
+      <div class="brand-right">
+        <button id="btn-open-settings" class="settings-btn" aria-label="Impostazioni" title="Preferenze e Tema">
+          <svg class="gear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-container">
+
+      <!-- FASE 1: ACQUISIZIONE SCREENSHOT -->
+      <section id="section-acquire" class="flow-card active">
+        <div class="card-header">
+          <h2>Acquisisci Screenshot</h2>
+          <p class="subtitle">Scatta una foto o carica uno screenshot con uno o più movimenti bancari</p>
+        </div>
+
+        <div id="dropzone" class="dropzone">
+          <div class="dropzone-content">
+            <div class="dropzone-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <div class="dropzone-text">
+              <h3>Trascina qui lo screenshot</h3>
+              <p>oppure seleziona un'opzione in basso</p>
+            </div>
+          </div>
+
+          <input type="file" id="input-camera" accept="image/*" capture="environment" class="hidden-input">
+          <input type="file" id="input-file" accept="image/*" class="hidden-input">
+        </div>
+
+        <div class="button-group-dual">
+          <button id="btn-camera" class="btn btn-primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>Scatta Foto</span>
+          </button>
+          
+          <button id="btn-gallery" class="btn btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <span>Sfoglia Galleria</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- FASE 1.5: ANTEPRIMA IMMAGINE -->
+      <section id="section-preview" class="flow-card">
+        <div class="card-header">
+          <h2>Verifica Screenshot</h2>
+          <p class="subtitle">Conferma l'immagine prima di avviare l'analisi contabile</p>
+        </div>
+
+        <div class="preview-container">
+          <img id="image-preview" src="" alt="Anteprima screenshot">
+          <div class="preview-overlay">
+            <span id="preview-info" class="preview-badge">JPEG • 120 KB</span>
+          </div>
+        </div>
+
+        <div class="button-group-dual">
+          <button id="btn-cancel-preview" class="btn btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            <span>Cambia</span>
+          </button>
+
+          <button id="btn-start-extract" class="btn btn-primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+            </svg>
+            <span>Estrai Transazioni (Gemini AI)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- FASE 2: PROCESSING / SKELETON -->
+      <section id="section-processing" class="flow-card">
+        <div class="processing-box">
+          <div class="ai-orb">
+            <div class="orb-core"></div>
+            <div class="orb-ring ring-1"></div>
+            <div class="orb-ring ring-2"></div>
+          </div>
+          
+          <div class="processing-text">
+            <h3 id="processing-step-title">Revisione Contabile AI in corso...</h3>
+            <p id="processing-step-desc">Gemini Flash sta identificando banca, date, importi, causali e interpretazioni</p>
+          </div>
+
+          <div class="skeleton-wrapper">
+            <div class="skeleton-compact-row">
+              <div class="skeleton skeleton-checkbox"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 45%;"></div>
+            </div>
+            <div class="skeleton-compact-row">
+              <div class="skeleton skeleton-checkbox"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 45%;"></div>
+            </div>
+            <div class="skeleton-compact-row">
+              <div class="skeleton skeleton-checkbox"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 25%;"></div>
+              <div class="skeleton skeleton-field" style="width: 45%;"></div>
+            </div>
+          </div>
+
+          <div class="processing-progress-bar">
+            <div class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FASE 3: INTERFACCIA COMPATTA OPEN BANKING (TABELLARE ORIZZONTALE) -->
+      <section id="section-validate" class="flow-card">
+        
+        <!-- Header compatto -->
+        <div class="card-header compact-header">
+          <div class="header-with-badge">
+            <div>
+              <h2>Estratto Contabile Rilevato</h2>
+              <p class="subtitle">Modifica in linea e seleziona i movimenti per il foglio BANK_LOG</p>
+            </div>
+            <span class="ai-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              AI Extract
+            </span>
+          </div>
+        </div>
+
+        <!-- Toolbar Globale con Selettore Banca Principale (Master) -->
+        <div class="master-control-panel">
+          
+          <div class="master-bank-block">
+            <label for="master-bank-select" class="master-bank-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M14 10v11M2 10l10-7 10 7"></path>
+              </svg>
+              <span>Banca:</span>
+            </label>
+            <div class="select-wrapper">
+              <select id="master-bank-select" class="master-bank-select">
+                <option value="BancoPosta">BancoPosta</option>
+                <option value="BBVA">BBVA</option>
+                <option value="Trade Republic">Trade Republic</option>
+                <option value="Revolut">Revolut</option>
+                <option value="Intesa Sanpaolo">Intesa Sanpaolo</option>
+                <option value="UniCredit">UniCredit</option>
+                <option value="Fineco">Fineco</option>
+                <option value="Buoni pasto">Buoni pasto</option>
+                <option value="Altro">Altro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="master-summary-block">
+            <div class="stat-pills">
+              <span id="selected-count-badge" class="count-pill">0 Sel.</span>
+              <span id="total-amount-sum" class="total-sum-badge font-mono">€ 0,00</span>
+            </div>
+            
+            <div class="action-buttons-group">
+              <button id="btn-select-all" class="btn-micro" type="button" title="Seleziona tutte le righe">Tutti</button>
+              <button id="btn-deselect-all" class="btn-micro" type="button" title="Deseleziona tutte">Nessuno</button>
+              <button id="btn-add-manual-tx" class="btn-micro btn-accent" type="button" title="Aggiungi movimento manuale">+ Riga</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Lista orizzontale compatta (Tabellare) -->
+        <div id="transactions-container" class="transactions-compact-table"></div>
+
+        <!-- Commit Footer Compatto -->
+        <div class="commit-footer">
+          <button id="btn-save-batch" type="button" class="btn btn-primary btn-save-batch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span id="btn-save-batch-text">Registra Movimenti Selezionati</span>
+          </button>
+
+          <button id="btn-discard-all" type="button" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+            <span>Scarta e Ricarica</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- FASE 4 & 5: FEEDBACK E RIEPILOGO OPEN BANKING -->
+      <section id="section-feedback" class="flow-card">
+        <div class="feedback-card">
+          <div class="success-icon-wrap">
+            <svg class="checkmark-svg" viewBox="0 0 52 52">
+              <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+              <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+          </div>
+
+          <h2>Salvataggio BANK_LOG Completato!</h2>
+          <p class="subtitle" id="feedback-subtitle">I movimenti sono stati registrati con successo</p>
+
+          <div class="summary-stats-grid">
+            <div class="stat-card">
+              <span class="stat-num text-emerald" id="stat-inserted">0</span>
+              <span class="stat-lbl">Inseriti (B:H)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num text-gold" id="stat-skipped">0</span>
+              <span class="stat-lbl">Duplicati Ignorati</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num text-purple" id="stat-total">0</span>
+              <span class="stat-lbl">Totale Elaborati</span>
+            </div>
+          </div>
+
+          <div class="auto-reset-wrapper">
+            <div class="reset-text">
+              <span>Nuovo caricamento tra <strong id="reset-counter">3</strong>s</span>
+            </div>
+            <div class="reset-bar-bg">
+              <div id="reset-bar-fill" class="reset-bar-fill"></div>
+            </div>
+          </div>
+
+          <button id="btn-immediate-reset" class="btn btn-primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Nuovo Screenshot Ora</span>
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal Bloccante Errore Diagnostico Webhook -->
+    <div id="error-modal" class="modal-backdrop">
+      <div class="modal-dialog modal-dialog-error">
+        <div class="modal-header">
+          <div class="modal-title modal-title-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3 id="err-modal-title">Salvataggio Non Riuscito</h3>
+          </div>
+          <button id="btn-close-error-modal" class="icon-button" aria-label="Chiudi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="err-box-content">
+            <p id="err-modal-message" class="err-main-msg"></p>
+            <div class="raw-response-box">
+              <span class="raw-title">Dettaglio Risposta / Diagnosi:</span>
+              <pre id="err-modal-raw" class="raw-text"></pre>
+            </div>
+            <div class="err-remediation-guide">
+              <h4>💡 Come risolvere subito:</h4>
+              <ol>
+                <li>Apri il tuo foglio su <strong>Google Sheets</strong> &gt; <strong>Estensioni</strong> &gt; <strong>Apps Script</strong>.</li>
+                <li>Crea il file <code>Open_Banking_App.gs</code> e incolla il modulo isolato.</li>
+                <li>Nel tuo <code>doPost(e)</code> principale inserisci il router a inizio funzione.</li>
+                <li>Clicca <strong>Distribuisci &gt; Gestisci distribuzioni &gt; Nuova versione</strong>.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-error-modal-ok" class="btn btn-secondary" type="button">
+            <span>Ho capito, configuro Apps Script</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Impostazioni & Preferenze (Completamente Ripulito) -->
+    <div id="settings-modal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <h3>Preferenze Applicazione</h3>
+          </div>
+          <button id="btn-close-settings" class="icon-button" aria-label="Chiudi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          
+          <!-- 1. Preimpostazione Banca Predefinita -->
+          <div class="form-group">
+            <label for="cfg-default-bank">
+              <span>1. Banca Predefinita</span>
+            </label>
+            <select id="cfg-default-bank" class="form-control">
+              <option value="auto">🤖 Rilevamento Automatico AI</option>
+              <option value="BancoPosta">BancoPosta</option>
+              <option value="BBVA">BBVA</option>
+              <option value="Trade Republic">Trade Republic</option>
+              <option value="Revolut">Revolut</option>
+              <option value="Intesa Sanpaolo">Intesa Sanpaolo</option>
+              <option value="UniCredit">UniCredit</option>
+              <option value="Fineco">Fineco</option>
+              <option value="Buoni pasto">Buoni pasto</option>
+              <option value="Altro">Altro</option>
+            </select>
+            <small class="field-hint">Pre-assegna la banca scelta a ogni nuovo screenshot caricato</small>
+          </div>
+
+          <!-- 2. Tema Grafico (Dark / Light Mode) -->
+          <div class="form-group">
+            <label>
+              <span>2. Tema Interfaccia</span>
+            </label>
+            <div class="theme-selector-grid">
+              <button type="button" class="theme-option-btn active" id="btn-theme-dark" data-theme="dark">
+                <span class="theme-icon">🌙</span>
+                <div class="theme-text-wrap">
+                  <span class="theme-name">Scuro (Dark)</span>
+                  <span class="theme-sub">Viola &amp; Oro Claiser.Lab</span>
+                </div>
+              </button>
+              <button type="button" class="theme-option-btn" id="btn-theme-light" data-theme="light">
+                <span class="theme-icon">☀️</span>
+                <div class="theme-text-wrap">
+                  <span class="theme-name">Chiaro (Light)</span>
+                  <span class="theme-sub">Pulito &amp; Moderno</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="btn btn-primary" type="button">
+            <span>Salva Preferenze</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  </div>
+
+  <script src="/app.js?v=2.8.0"></script>
+</body>
+</html>
