@@ -98,9 +98,14 @@ export default async function handler(req, res) {
       cleanBase64 = parts[1];
     }
 
+    const currentYear = new Date().getFullYear();
+
     const systemPrompt = "Sei un revisore contabile esperto. Estrai le transazioni da questo screenshot bancario. " +
       "Ignora i saldi, l'orario e la batteria. Restituisci SOLO un array JSON puro, senza markdown. " +
-      "Chiavi richieste: 'data' (formato GG/MM/AAAA), 'causale' (testo pulito), 'importo' (numero con segno), 'banca' (identifica istituto dal brand, es. 'BancoPosta', 'BBVA', 'Trade Republic', 'Revolut', 'Buoni pasto'. Se la banca non è esplicitamente indicata nel testo, individuala dalla grafica, dai colori e dal layout dello screenshot), 'interpretazione' (analizza la causale bancaria e scrivi in testo libero, conciso ed esplicativo, a cosa si riferisce l'operazione).";
+      `REGOLA TASSATIVA SULL'ANNO: L'anno di riferimento corrente del sistema è obbligatoriamente il ${currentYear}. ` +
+      `Se lo screenshot bancario mostra solo giorno e mese (es. "12 Ago", "31/08", "04/09"), DEVI utilizzare tassativamente il ${currentYear} come anno per comporre la data GG/MM/AAAA (es. 12/08/${currentYear}, 31/08/${currentYear}). ` +
+      `NON inventare né impostare anni passati (come il 2024), a meno che l'anno non sia esplicitamente scritto con 4 cifre nello screenshot. ` +
+      "Chiavi richieste: 'data' (formato GG/MM/AAAA con anno a 4 cifre), 'causale' (testo pulito), 'importo' (numero con segno), 'banca' (identifica istituto dal brand, es. 'BancoPosta', 'BBVA', 'Trade Republic', 'Revolut', 'Buoni pasto'. Se la banca non è esplicitamente indicata nel testo, individuala dalla grafica, dai colori e dal layout dello screenshot), 'interpretazione' (analizza la causale bancaria e scrivi in testo libero, conciso ed esplicativo, a cosa si riferisce l'operazione).";
 
     const promptPayload = {
       contents: [
@@ -113,7 +118,7 @@ export default async function handler(req, res) {
               }
             },
             {
-              text: "Estrai tutte le transazioni contabili presenti in questo screenshot. Restituisci esclusivamente un array JSON contenente tutti i movimenti con le chiavi: data (GG/MM/AAAA), causale, importo (float con segno), banca, interpretazione."
+              text: `Estrai tutte le transazioni contabili presenti in questo screenshot. ANNO DI RIFERIMENTO OBBLIGATORIO: ${currentYear}. Se le date mostrano solo giorno e mese, usa tassativamente il ${currentYear} come anno. Restituisci esclusivamente un array JSON contenente tutti i movimenti con le chiavi: data (formato GG/MM/${currentYear}), causale, importo (float con segno), banca, interpretazione.`
             }
           ]
         }
@@ -127,7 +132,7 @@ export default async function handler(req, res) {
             properties: {
               data: {
                 type: "STRING",
-                description: "Data della transazione nel formato GG/MM/AAAA"
+                description: `Data della transazione nel formato GG/MM/AAAA. Se lo screenshot mostra solo giorno e mese, imposta obbligatoriamente l'anno corrente ${currentYear}.`
               },
               causale: {
                 type: "STRING",
